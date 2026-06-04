@@ -10,4 +10,6 @@ public interface IOrderRepository extends JpaRepository<Order, Integer> {
     List<Order> findByUserIdOrderByCreatedAtDesc(Integer userId);
 
     List<Order> findByUserIdAndStatusOrderByCreatedAtDesc(Integer userId, OrderStatus status);
+
+    List<Order> findByUserId(Integer id);
 }

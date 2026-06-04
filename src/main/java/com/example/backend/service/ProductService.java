@@ -2,16 +2,21 @@ package com.example.backend.service;
 
 import com.example.backend.dto.request.ProductFilterResquest;
 import com.example.backend.dto.response.ProductDetailResponse;
+import com.example.backend.dto.response.ProductOptionsResponse;
 import com.example.backend.dto.response.ProductResponse;
 import com.example.backend.dto.response.ReviewResponse;
 import com.example.backend.entity.Product;
 import com.example.backend.entity.Review;
+import com.example.backend.entity.Size;
+import com.example.backend.entity.Topping;
 import com.example.backend.exception.ApplicationErrors;
 import com.example.backend.exception.ApplicationException;
 import com.example.backend.mapper.ProductMapper;
 import com.example.backend.mapper.ReviewMapper;
 import com.example.backend.repository.IProductRepository;
 import com.example.backend.repository.IReviewRepository;
+import com.example.backend.repository.ISizeRepository;
+import com.example.backend.repository.IToppingRepository;
 import com.example.backend.specification.ProductSpecification;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -28,6 +33,8 @@ public class ProductService implements IProductService {
     private final ProductMapper productMapper;
     private final IReviewRepository reviewRepository;
     private final ReviewMapper reviewMapper;
+    private final ISizeRepository sizeRepository;
+    private final IToppingRepository toppingRepository;
 
     @Override
     public List<ProductResponse> getBestSellers() {
@@ -42,7 +49,7 @@ public class ProductService implements IProductService {
         BigDecimal minPrice = productFilterResquest.getMinPrice();
         BigDecimal maxPrice = productFilterResquest.getMaxPrice();
         String sortBy = productFilterResquest.getSortBy();
-
+        Integer ratingBucket = productFilterResquest.getRatingBucket();
         Sort sort = Sort.by(Sort.Direction.DESC, "id");
         if("price_asc".equalsIgnoreCase(sortBy)){
             sort = Sort.by(Sort.Direction.ASC, "basePrice");
@@ -64,6 +71,9 @@ public class ProductService implements IProductService {
         }
         if (maxPrice != null) {
             specification = specification.and(ProductSpecification.maxPrice(maxPrice));
+        }
+        if (ratingBucket != null) {
+            specification = specification.and(ProductSpecification.productRatingRange(ratingBucket));
         }
 
         List<Product> productList = productRepository.findAll(specification, sort);
@@ -91,5 +101,30 @@ public class ProductService implements IProductService {
         productDetailResponse.setAverageRating(Math.round(avgRating * 10) / 10.0 );
         productDetailResponse.setReviews(reviewResponses);
         return productDetailResponse;
+    }
+
+    @Override
+    public ProductOptionsResponse getProductOptions(Integer productId) {
+        // 1. Kiểm tra sản phẩm
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new com.example.backend.exception.ApplicationException("Sản phẩm không tồn tại!", 404, 404));
+
+        // 2. Lấy thẳng danh sách Entity từ Database lên (Không cần map sang DTO nữa)
+        List<Size> sizes = sizeRepository.findAll();
+        List<Topping> toppings = toppingRepository.findAll();
+
+        // 3. Khởi tạo mảng String cho Đường và Đá
+        List<String> sugarLevels = List.of("NONE", "LESS", "NORMAL");
+        List<String> iceLevels = List.of("NONE", "LESS", "NORMAL");
+
+        // 4. Đóng gói và trả về
+        return ProductOptionsResponse.builder()
+                .productId(product.getId())
+                .productName(product.getName())
+                .sizes(sizes)
+                .sugarLevels(sugarLevels)
+                .iceLevels(iceLevels)
+                .toppings(toppings)
+                .build();
     }
 }

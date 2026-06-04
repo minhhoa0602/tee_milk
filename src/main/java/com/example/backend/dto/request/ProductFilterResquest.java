@@ -11,4 +11,5 @@ public class ProductFilterResquest {
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
     private String sortBy;
+    private Integer ratingBucket;
 }

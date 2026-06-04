@@ -37,4 +37,13 @@ public class OrderController {
     ){
         return ResponseEntity.ok(new BaseResponse<>(orderService.getOrderHistory(customUserDetails.getUser(), status), "successfully"));
     }
+
+    @PostMapping("/{id}/reorder")
+    public ResponseEntity<BaseResponse> reorder(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Integer id) {
+
+        String result = orderService.reorder(userDetails.getUser(), id);
+        return ResponseEntity.ok(new BaseResponse(200, null, result));
+    }
 }

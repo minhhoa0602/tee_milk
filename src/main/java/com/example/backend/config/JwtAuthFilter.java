@@ -1,5 +1,6 @@
 package com.example.backend.config;
 
+import com.example.backend.repository.IBlacklistedTokenRepository;
 import com.example.backend.service.CustomUserDetailsService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,7 +27,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService userDetailsService;
-
+    private final IBlacklistedTokenRepository blacklistedTokenRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -41,6 +42,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
         //Cắt bỏ chữ "Bearer " (7 ký tự) để lấy chuỗi Token thật
         jwt = authHeader.substring(7);
+        // LOGIC CHẶN ĐĂNG XUẤT
+        if (blacklistedTokenRepository.existsByToken(jwt)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("{\"code\": 401, \"message\": \"Token đã hết hạn hoặc đã đăng xuất!\"}");
+            return; // Chặn đứng luồng request tại đây, không chạy xuống code bên dưới nữa
+        }
         userEmail = jwtService.extractUsername(jwt);
         //Nếu lấy được email và chưa có ai đăng nhập
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {

@@ -35,4 +35,13 @@ public class AddressController {
         List<AddressResponse> data = addressService.getAddressesByUser(userDetails.getUser());
         return ResponseEntity.ok(new BaseResponse(200, data, "Lấy danh sách địa chỉ thành công"));
     }
+
+    @PutMapping("/{id}/set-default")
+    public ResponseEntity<BaseResponse> setDefaultAddress(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Integer id) {
+
+        AddressResponse data = addressService.setDefaultAddress(userDetails.getUser(), id);
+        return ResponseEntity.ok(new BaseResponse(200, data, "Thay đổi địa chỉ mặc định thành công"));
+    }
 }

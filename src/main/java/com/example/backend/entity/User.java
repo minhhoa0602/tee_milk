@@ -44,4 +44,7 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<Address> addresses;
+
+    @Column(name = "reset_token")
+    private String resetToken;
 }

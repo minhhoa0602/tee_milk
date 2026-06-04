@@ -13,6 +13,7 @@ import java.util.List;
 
 @Mapper(componentModel = "spring", uses = OrderItemMapper.class)
 public interface OrderMapper {
+    @Mapping(target = "id", ignore = true)
     @Mapping(target = "productName", source = "product.name")
     @Mapping(target = "sizeName", source = "size.name")
     OrderItem cartItemToOrderItem(CartItem cartItem);

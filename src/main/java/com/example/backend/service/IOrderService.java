@@ -10,4 +10,5 @@ import java.util.List;
 public interface IOrderService {
     OrderResponse order (User user, OrderRequest orderRequest);
     List<OrderHistoryResponse> getOrderHistory (User user, String status);
+    String reorder(User user, Integer oldOrderId);
 }

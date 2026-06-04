@@ -1,16 +1,16 @@
 package com.example.backend.service;
 
 import com.example.backend.dto.request.CartRequest;
+import com.example.backend.dto.request.UpdateCartRequest;
 import com.example.backend.dto.response.CartItemResponse;
 import com.example.backend.entity.*;
 import com.example.backend.exception.ApplicationErrors;
+import com.example.backend.exception.ApplicationException;
 import com.example.backend.mapper.CartMapper;
-import com.example.backend.repository.ICartRepository;
-import com.example.backend.repository.IProductRepository;
-import com.example.backend.repository.ISizeRepository;
-import com.example.backend.repository.IToppingRepository;
+import com.example.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -25,6 +25,7 @@ public class CartService implements ICartService{
     private final ISizeRepository sizeRepository;
     private final IToppingRepository toppingRepository;
     private final IProductRepository productRepository;
+    private final ICartItemRepository cartItemRepository;
     private final CartMapper cartMapper;
 
     private CartItemResponse convertToCartItemResponse(CartItem cartItem) {
@@ -106,5 +107,63 @@ public class CartService implements ICartService{
         return "Đã xóa món khỏi giỏ hàng.";
     }
 
+    @Override
+    @Transactional
+    public String updateCartItem(User user, UpdateCartRequest request) {
+        // 1. Tìm dòng giỏ hàng cần chỉnh sửa
+        CartItem currentItem = cartItemRepository.findById(request.getCartItemId())
+                .orElseThrow(() -> new ApplicationException("Không tìm thấy món hàng trong giỏ!", 404, 404));
+
+        // Bảo mật: Kiểm tra xem món trong giỏ này có đúng là của User đang đăng nhập không
+        if (!currentItem.getUser().getId().equals(user.getId())) {
+            throw new ApplicationException("Bạn không có quyền thao tác trên giỏ hàng này!", 403, 403);
+        }
+
+        // 2. Bốc các thực thể mới dựa theo request gửi lên
+        Size newSize = sizeRepository.findById(request.getSizeId())
+                .orElseThrow(() -> new ApplicationException("Kích cỡ không tồn tại!", 400, 400));
+
+        LevelOption newIce = LevelOption.valueOf(request.getIceLevel());
+        LevelOption newSugar = LevelOption.valueOf(request.getSugarLevel());
+
+        java.util.Set<Topping> newToppings = new java.util.HashSet<>();
+        if (request.getToppingIds() != null && !request.getToppingIds().isEmpty()) {
+            newToppings.addAll(toppingRepository.findAllById(request.getToppingIds()));
+        }
+
+        // 3. KIỂM TRA XEM CÓ BỊ TRÙNG VỚI DÒNG KHÁC KHÔNG (Trừ chính nó ra)
+        // Lấy tất cả các item có cùng Product của User này trong giỏ
+        List<CartItem> userCartItems = cartItemRepository.findByUserIdAndProductId(user.getId(), currentItem.getProduct().getId());
+
+        java.util.Optional<CartItem> matchedItem = userCartItems.stream()
+                .filter(item -> !item.getId().equals(currentItem.getId()) // Loại trừ chính dòng đang sửa
+                        && item.getSize().getId().equals(newSize.getId())
+                        && item.getIceLevel() == newIce
+                        && item.getSugarLevel() == newSugar
+                        && item.getToppings().size() == newToppings.size()
+                        && item.getToppings().containsAll(newToppings))
+                .findFirst();
+
+        if (matchedItem.isPresent()) {
+            // NẾU TRÙNG: Cộng dồn số lượng mới vào dòng đã có sẵn kia
+            CartItem existingItem = matchedItem.get();
+            existingItem.setQuantity(existingItem.getQuantity() + request.getQuantity());
+            cartItemRepository.save(existingItem);
+
+            // Xóa bỏ hoàn toàn dòng cũ đang sửa đi (Vì đã gộp sang dòng kia rồi)
+            cartItemRepository.delete(currentItem);
+            return "Đã gộp trùng món và cập nhật giỏ hàng!";
+        } else {
+            // NẾU KHÔNG TRÙNG: Tiến hành ghi đè thông tin mới lên chính dòng này
+            currentItem.setSize(newSize);
+            currentItem.setIceLevel(newIce);
+            currentItem.setSugarLevel(newSugar);
+            currentItem.setToppings(newToppings);
+            currentItem.setQuantity(request.getQuantity()); // Ghi đè số lượng mới hoàn toàn
+
+            cartItemRepository.save(currentItem);
+            return "Cập nhật giỏ hàng thành công!";
+        }
+    }
 
 }

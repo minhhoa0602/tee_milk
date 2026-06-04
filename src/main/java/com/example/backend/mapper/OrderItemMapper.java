@@ -9,5 +9,6 @@ import org.mapstruct.Mapping;
 public interface OrderItemMapper {
 
     @Mapping(target = "productImageUrl", source = "product.imageUrl")
+    @Mapping(target = "productId", source = "product.id")
     OrderItemResponse orderItemToOrderItemResponse(OrderItem orderItem);
 }

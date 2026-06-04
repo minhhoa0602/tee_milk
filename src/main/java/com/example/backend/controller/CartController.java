@@ -3,6 +3,7 @@ package com.example.backend.controller;
 import com.example.backend.common.BaseResponse;
 import com.example.backend.config.CustomUserDetails;
 import com.example.backend.dto.request.CartRequest;
+import com.example.backend.dto.request.UpdateCartRequest;
 import com.example.backend.dto.response.CartItemResponse;
 import com.example.backend.entity.User;
 import com.example.backend.service.CartService;
@@ -39,5 +40,14 @@ public class CartController {
             @PathVariable Integer id
     ){
         return ResponseEntity.ok(new BaseResponse<>( cartService.removeFromCart(customUserDetails.getUser(), id), "successfully"));
+    }
+
+    @PutMapping("/update")
+    public ResponseEntity<BaseResponse> updateCartItem(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody UpdateCartRequest request) {
+
+        String result = cartService.updateCartItem(userDetails.getUser(), request);
+        return ResponseEntity.ok(new BaseResponse(200, null, result));
     }
 }

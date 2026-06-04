@@ -9,4 +9,5 @@ import java.util.List;
 public interface IAddressService {
     AddressResponse createAddress(User user, AddressRequest request);
     List<AddressResponse> getAddressesByUser(User user);
+    AddressResponse setDefaultAddress(User user, Integer addressId);
 }

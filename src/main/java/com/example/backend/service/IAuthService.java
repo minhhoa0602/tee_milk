@@ -1,8 +1,8 @@
 package com.example.backend.service;
 
-import com.example.backend.dto.request.LoginRequest;
-import com.example.backend.dto.request.RegisterRequest;
-import com.example.backend.dto.request.VerifyRequest;
+import com.example.backend.dto.request.*;
+import com.example.backend.dto.response.ResetPasswordRequest;
+import com.example.backend.dto.response.ResetPasswordWithTokenRequest;
 import com.example.backend.dto.response.TokenResponse;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -16,4 +16,10 @@ public interface IAuthService {
     String verifyAccount(VerifyRequest verifyRequest);
     //ĐĂNG NHẬP (KIỂM TRA TRẠNG THÁI VERIFIED)
     TokenResponse login(LoginRequest loginRequest);
+
+    String requestForgotPassword(ForgotPasswordRequest request);
+    String verifyForgotPasswordOtp(ForgotPasswordVerifyRequest request);
+    String resetPasswordWithToken(ResetPasswordWithTokenRequest request);
+
+    String logout(String bearerToken);
 }
