@@ -9,7 +9,9 @@ import java.util.List;
 @Data
 @Builder
 public class CartItemResponse {
+
     private Integer cartItemId;
+    private int productId;
     private String productName;
     private String productImage;
     private String productSize;

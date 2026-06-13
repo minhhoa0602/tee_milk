@@ -34,12 +34,12 @@ public class CartController {
         return ResponseEntity.ok(new BaseResponse<>(cartService.addToCart(customUserDetails.getUser(), cartRequest), "successfully"));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping(value = {"", "/{id}"})
     public ResponseEntity<BaseResponse> removeFromCart(
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
-            @PathVariable Integer id
+            @PathVariable(required = false) Integer id
     ){
-        return ResponseEntity.ok(new BaseResponse<>( cartService.removeFromCart(customUserDetails.getUser(), id), "successfully"));
+        return ResponseEntity.ok(new BaseResponse<>(cartService.removeFromCart(customUserDetails.getUser(), id), "successfully"));
     }
 
     @PutMapping("/update")

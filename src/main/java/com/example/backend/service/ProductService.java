@@ -117,14 +117,6 @@ public class ProductService implements IProductService {
         List<String> sugarLevels = List.of("NONE", "LESS", "NORMAL");
         List<String> iceLevels = List.of("NONE", "LESS", "NORMAL");
 
-        // 4. Đóng gói và trả về
-        return ProductOptionsResponse.builder()
-                .productId(product.getId())
-                .productName(product.getName())
-                .sizes(sizes)
-                .sugarLevels(sugarLevels)
-                .iceLevels(iceLevels)
-                .toppings(toppings)
-                .build();
+        return productMapper.productToProductOptionsResponse(product, sizes, sugarLevels, iceLevels, toppings);
     }
 }

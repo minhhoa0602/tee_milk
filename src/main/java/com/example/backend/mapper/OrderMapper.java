@@ -22,6 +22,8 @@ public interface OrderMapper {
     @Mapping(target = "status", expression = "java(order.getStatus().name())")
     @Mapping(target = "totalAmount", source = "totalAmount")
     @Mapping(target = "qrCodeUrl", source = "qrCodeUrl")
+    @Mapping(target = "orderId", expression = "java(order.getId())")
+    @Mapping(target = "paymentStatus", expression = "java(order.getPaymentStatus().name())")
     OrderResponse orderToOrderResponse(Order order, BigDecimal totalAmount, String qrCodeUrl);
 
     @Mapping(target = "orderCode", expression = "java(\"#MT\" + String.format(\"%08d\", order.getId()))")

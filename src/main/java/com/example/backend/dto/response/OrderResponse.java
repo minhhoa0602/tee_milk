@@ -12,5 +12,6 @@ public class OrderResponse {
     private BigDecimal totalAmount;
     private String paymentMethod;
     private String status;
+    private String paymentStatus;
     private String qrCodeUrl;
 }

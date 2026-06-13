@@ -31,6 +31,7 @@ public class OrderService implements IOrderService {
     private final ICartItemRepository cartItemRepository;
     private final ISizeRepository sizeRepository;
     private final IToppingRepository toppingRepository;
+    private final IProductRepository productRepository;
 
     @Override
     @Transactional
@@ -56,7 +57,7 @@ public class OrderService implements IOrderService {
             throw ApplicationErrors.NAMEORPHONE_ERROR;
         }
 
-        // 3. Khởi tạo đơn hàng (Tạm thời lưu tổng tiền bằng 0 để lấy ID trước)
+        // 3. Khởi tạo đơn hàng (Giữ nguyên luồng OrderStatus gốc của bạn)
         Order order = new Order();
         order.setUser(user);
         order.setAddress(address);
@@ -66,6 +67,7 @@ public class OrderService implements IOrderService {
         order.setPhoneNumber(orderRequest.getPhoneNumber());
         order.setNote(orderRequest.getNote());
         order.setTotalAmount(BigDecimal.ZERO);
+        order.setPaymentStatus(PaymentStatus.UNPAID);
 
         order = orderRepository.save(order); // Lưu trước để sinh ID đơn hàng
 
@@ -91,12 +93,11 @@ public class OrderService implements IOrderService {
             orderItem.setUnitPrice(price);
             orderItemRepository.save(orderItem);
 
-            // CẬP NHẬT TRƯỜNG soldCount CÓ SẴN CỦA ĐỐM
+            // CẬP NHẬT TRƯỜNG soldCount CÓ SẴN
             Product product = cartItem.getProduct();
             int currentSold = product.getSoldCount() != null ? product.getSoldCount() : 0;
-
-            // Cộng dồn số lượng ly khách vừa mua vào cột đã bán
             product.setSoldCount(currentSold + cartItem.getQuantity());
+            productRepository.save(product); // Đảm bảo đồng bộ cập nhật xuống DB
         }
 
         // 5. Cập nhật tổng tiền chính xác cuối cùng cho Đơn hàng
@@ -106,12 +107,25 @@ public class OrderService implements IOrderService {
         // Xóa sạch các món đã thanh toán khỏi giỏ hàng
         cartRepository.deleteAll(selectedItems);
 
-        // 6. XỬ LÝ SINH MÃ QR MOMO THEO SỐ TIỀN THẬT
+        // 6. XỬ LÝ SINH MÃ QR VIETQR THEO SỐ TIỀN THẬT
         String qr = null;
-        if ("MOMO".equals(orderRequest.getPayment())) {
-            String momoPhone = "0378933396";
-            String momoLink = "https://nhantien.momo.vn/" + momoPhone + "/" + totalAmount.toBigInteger();
-            qr = "https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=" + URLEncoder.encode(momoLink, StandardCharsets.UTF_8);
+
+        if ("MOMO".equals(orderRequest.getPayment()) || "BANK".equals(orderRequest.getPayment())) {
+            String bankId = "MB";
+            String accountNo = "0378933396";
+            String accountName = "VU MINH HOA";
+            String note = "Thanh toan don hang cua teeMilk " + order.getId();
+
+            try {
+                String encodedAccountName = URLEncoder.encode(accountName, StandardCharsets.UTF_8.toString()).replace("+", "%20");
+                String encodedNote = URLEncoder.encode(note, StandardCharsets.UTF_8.toString()).replace("+", "%20");
+
+                qr = String.format("https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s&accountName=%s",
+                        bankId, accountNo, totalAmount.toBigInteger().toString(), encodedNote, encodedAccountName);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         return orderMapper.orderToOrderResponse(order, totalAmount, qr);
@@ -200,4 +214,54 @@ public class OrderService implements IOrderService {
 
         return "Đã thêm toàn bộ các món từ đơn hàng cũ vào giỏ hàng của bạn!";
     }
+
+    @Override
+    @Transactional
+    public void handleWebhookPayment(Integer orderId, BigDecimal transferAmount) {
+        System.out.println("[DEBUG] Bắt đầu gọi hàm xử lý thanh toán cho đơn: " + orderId);
+
+        Order order = orderRepository.findById(orderId).orElse(null);
+
+        if (order == null) {
+            System.out.println("[DEBUG] ❌ LỖI: Không tìm thấy đơn hàng số " + orderId + " trong Database!");
+            return;
+        }
+
+        System.out.println("[DEBUG] Đã tìm thấy đơn trong DB. Trạng thái: " + order.getStatus());
+        System.out.println("[DEBUG] Tổng tiền cần thu: " + order.getTotalAmount() + " | Tiền khách chuyển: " + transferAmount);
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            // So sánh số tiền (compareTo trả về >= 0 nếu transferAmount lớn hơn hoặc bằng)
+            if (transferAmount.compareTo(order.getTotalAmount()) >= 0) {
+
+                // Đổi trạng thái sang PAID và PROCESSING
+                order.setPaymentStatus(PaymentStatus.PAID);
+                order.setStatus(OrderStatus.PROCESSING);
+                orderRepository.save(order);
+
+                System.out.println("🎉 Đã DUYỆT TỰ ĐỘNG thành công trạng thái thanh toán đơn hàng số " + orderId);
+            } else {
+                System.out.println("❌ LỖI: Khách hàng chuyển thiếu tiền! Yêu cầu: " + order.getTotalAmount() + ", Thực nhận: " + transferAmount);
+            }
+        } else {
+            System.out.println("[DEBUG] ⚠️ BỎ QUA: Đơn hàng không ở trạng thái PENDING (Có thể đã được duyệt trước đó rồi).");
+        }
+    }
+
+    @Override
+    public OrderResponse getOrderById(User user, Integer orderId) {
+        // Tìm đơn hàng trong DB
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ApplicationException("Không tìm thấy đơn hàng!", 404, 404));
+
+        // Bảo mật: Đảm bảo user chỉ được xem đơn hàng của chính mình
+        if (!order.getUser().getId().equals(user.getId())) {
+            throw new ApplicationException("Bạn không có quyền truy cập đơn hàng này!", 403, 403);
+        }
+
+        // Map dữ liệu sang Response. Vì lấy chi tiết không cần tạo lại mã QR nên truyền qrCode = null
+        return orderMapper.orderToOrderResponse(order, order.getTotalAmount(), null);
+    }
+
+
 }

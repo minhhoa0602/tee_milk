@@ -46,4 +46,12 @@ public class OrderController {
         String result = orderService.reorder(userDetails.getUser(), id);
         return ResponseEntity.ok(new BaseResponse(200, null, result));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<BaseResponse<OrderResponse>> getOrderById(
+            @AuthenticationPrincipal CustomUserDetails customUserDetails,
+            @PathVariable Integer id
+    ){
+        return ResponseEntity.ok(new BaseResponse<>(orderService.getOrderById(customUserDetails.getUser(), id), "Lấy thông tin đơn hàng thành công"));
+    }
 }

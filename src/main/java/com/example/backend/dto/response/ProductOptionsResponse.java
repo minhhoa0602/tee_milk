@@ -5,6 +5,7 @@ import com.example.backend.entity.Topping;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -12,7 +13,8 @@ import java.util.List;
 public class ProductOptionsResponse {
     private Integer productId;
     private String productName;
-
+    private String imageUrl;
+    private BigDecimal basePrice;
     private List<Size> sizes;         // Danh sách Size (id, name, priceAdd)
     private List<String> sugarLevels;         // Chỉ trả về mảng chuỗi ["NONE", "LESS", "NORMAL"]
     private List<String> iceLevels;           // Chỉ trả về mảng chuỗi ["NONE", "LESS", "NORMAL"]

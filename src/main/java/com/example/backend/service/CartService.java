@@ -28,30 +28,14 @@ public class CartService implements ICartService{
     private final ICartItemRepository cartItemRepository;
     private final CartMapper cartMapper;
 
-    private CartItemResponse convertToCartItemResponse(CartItem cartItem) {
-        BigDecimal toppingPrice = cartItem.getToppings()
-                .stream()
-                .map(Topping::getPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal price = cartItem.getProduct().getBasePrice()
-                .add(cartItem.getSize().getPriceAdd())
-                .add(toppingPrice);
-        CartItemResponse cartItemResponse = cartMapper.cartItemtoCartItemResponse(cartItem);
-        cartItemResponse.setPrice(price);
-        cartItemResponse.setTotalPrice(price.multiply(BigDecimal.valueOf(cartItem.getQuantity())));
-
-        return cartItemResponse;
-    }
 
     @Override
     public List<CartItemResponse> getCart(User user) {
 
         List<CartItem> cartItems = cartRepository.findByUserId(user.getId());
-        for (CartItem item : cartItems) {
-            System.out.println(item.getToppings());
-        }
+
         return cartItems.stream()
-                .map(this::convertToCartItemResponse)
+                .map(cartMapper::cartItemtoCartItemResponse)
                 .toList();
     }
 
@@ -97,12 +81,22 @@ public class CartService implements ICartService{
 
     @Override
     public String removeFromCart(User user, Integer id) {
+        // Trường hợp 1: Không truyền ID -> Xóa toàn bộ giỏ hàng của User này
+        if (id == null) {
+            // Lưu ý: Bạn cần có hàm deleteByUser trong CartRepository nhé
+            cartRepository.deleteByUser(user);
+            return "Đã xóa toàn bộ sản phẩm khỏi giỏ hàng.";
+        }
+
+        // Trường hợp 2: Có truyền ID -> Chỉ xóa món đó
         CartItem cartItem = cartRepository.findById(id)
                 .orElseThrow(() -> ApplicationErrors.CART_NOT_FOUND);
-        // chi cho phep xoa mon cua chinh user do
+
+        // Chỉ cho phép xóa món của chính user đó
         if (!cartItem.getUser().getId().equals(user.getId())) {
-             throw ApplicationErrors.ERRORS_USER;
+            throw ApplicationErrors.ERRORS_USER;
         }
+
         cartRepository.delete(cartItem);
         return "Đã xóa món khỏi giỏ hàng.";
     }
